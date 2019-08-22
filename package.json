@@ -1,0 +1,24 @@
+{
+  "name": "socket-2d-server",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node index"
+  },
+  "keywords": [],
+  "author": "Travis Horn (https://travishorn.com)",
+  "license": "MIT",
+  "dependencies": {
+    "lodash": "^4.17.15",
+    "randomcolor": "^0.5.4",
+    "socket.io": "^2.2.0"
+  },
+  "devDependencies": {
+    "eslint": "^6.2.1",
+    "eslint-config-prettier": "^6.1.0",
+    "eslint-plugin-prettier": "^3.1.0",
+    "prettier": "^1.18.2"
+  }
+}
