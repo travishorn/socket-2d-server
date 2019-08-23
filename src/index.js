@@ -97,4 +97,7 @@ const clientConnected = client => {
 io.on("connection", clientConnected);
 
 io.listen(port);
-logger.info(`Socket 2D Server listening on port ${port}.`);
+logger.info({
+  message: "Socket 2D Server listening.",
+  port
+});
