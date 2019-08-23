@@ -6,12 +6,30 @@ const animal = require("./animal");
 
 const port = process.env.PORT || 3000;
 
-const clientDisconnected = reason => {
+const clientDisconnected = (client, reason) => {
   logger.debug({ message: "Client disconnected.", reason });
+
+  /* Remove ALL remote clients, then add back the still-alive ones
+   * Need to find a way to just remove the disconnected client. */
+  client.broadcast.emit("resetRemoteClients");
+
+  const remoteClients = Object.keys(io.sockets.sockets).map(id => {
+    const remoteClient = io.sockets.sockets[id];
+
+    return {
+      nickname: remoteClient.nickname,
+      coordinates: remoteClient.coordinates,
+      color: remoteClient.color
+    };
+  });
+
+  remoteClients.forEach(remoteClient => {
+    client.broadcast.emit("addRemoteClient", remoteClient);
+  });
 };
 
-const logMove = (nickname, direction, newLocation) => {
-  logger.debug({ message: "Client move", nickname, direction, newLocation });
+const logMove = (nickname, direction, newCoordinates) => {
+  logger.debug({ message: "Client move", nickname, direction, newCoordinates });
 };
 
 const logMoveDenied = nickname => {
@@ -22,53 +40,64 @@ const logMoveDenied = nickname => {
   });
 };
 
-const clientConnected = client => {
-  const move = direction => {
-    logger.debug({
-      message: "Client move request",
-      nickname: client.nickname,
-      direction
-    });
+const clientMove = (client, direction) => {
+  logger.debug({
+    message: "Client move request",
+    nickname: client.nickname,
+    direction
+  });
 
-    switch (direction) {
-      case "up":
-        if (client.coordinates.y - 10 >= 0) {
-          client.coordinates.y -= 10;
-          client.emit("setLocation", client.coordinates);
-          logMove(client.nickname, direction, client.coordinates);
-        } else {
-          logMoveDenied(client.nickname);
-        }
-        break;
-      case "right":
-        if (client.coordinates.x + 10 <= 500) {
-          client.coordinates.x += 10;
-          client.emit("setLocation", client.coordinates);
-          logMove(client.nickname, direction, client.coordinates);
-        } else {
-          logMoveDenied(client.nickname);
-        }
-        break;
-      case "down":
-        if (client.coordinates.y + 10 <= 500) {
-          client.coordinates.y += 10;
-          client.emit("setLocation", client.coordinates);
-          logMove(client.nickname, direction, client.coordinates);
-        } else {
-          logMoveDenied(client.nickname);
-        }
-        break;
-      case "left":
-        if (client.coordinates.x - 10 >= 0) {
-          client.coordinates.x -= 10;
-          client.emit("setLocation", client.coordinates);
-          logMove(client.nickname, direction, client.coordinates);
-        } else {
-          logMoveDenied(client.nickname);
-        }
-    }
+  const informRemoteClients = () => {
+    client.broadcast.emit("setRemoteClientCoordinates", {
+      nickname: client.nickname,
+      coordinates: client.coordinates
+    });
   };
 
+  switch (direction) {
+    case "up":
+      if (client.coordinates.y - 10 >= 0) {
+        client.coordinates.y -= 10;
+        client.emit("setCoordinates", client.coordinates);
+        informRemoteClients();
+        logMove(client.nickname, direction, client.coordinates);
+      } else {
+        logMoveDenied(client.nickname);
+      }
+      break;
+    case "right":
+      if (client.coordinates.x + 10 <= 500) {
+        client.coordinates.x += 10;
+        client.emit("setCoordinates", client.coordinates);
+        informRemoteClients();
+        logMove(client.nickname, direction, client.coordinates);
+      } else {
+        logMoveDenied(client.nickname);
+      }
+      break;
+    case "down":
+      if (client.coordinates.y + 10 <= 500) {
+        client.coordinates.y += 10;
+        client.emit("setCoordinates", client.coordinates);
+        informRemoteClients();
+        logMove(client.nickname, direction, client.coordinates);
+      } else {
+        logMoveDenied(client.nickname);
+      }
+      break;
+    case "left":
+      if (client.coordinates.x - 10 >= 0) {
+        client.coordinates.x -= 10;
+        client.emit("setCoordinates", client.coordinates);
+        informRemoteClients();
+        logMove(client.nickname, direction, client.coordinates);
+      } else {
+        logMoveDenied(client.nickname);
+      }
+  }
+};
+
+const clientConnected = client => {
   logger.debug({
     message: "Client connected.",
     clientId: client.id
@@ -79,19 +108,41 @@ const clientConnected = client => {
   client.color = randomColor();
 
   client.emit("setNickname", client.nickname);
-  client.emit("setLocation", client.coordinates);
+  client.emit("setCoordinates", client.coordinates);
   client.emit("setColor", client.color);
 
   logger.debug({
     message: "Client initialized",
     clientId: client.id,
     nickname: client.nickname,
-    location: client.coordinates,
+    coordinates: client.coordinates,
     color: client.color
   });
 
-  client.on("move", move);
-  client.on("disconnect", clientDisconnected);
+  const remoteClients = Object.keys(io.sockets.sockets)
+    .filter(id => id !== client.id)
+    .map(id => {
+      const remoteClient = io.sockets.sockets[id];
+
+      return {
+        nickname: remoteClient.nickname,
+        coordinates: remoteClient.coordinates,
+        color: remoteClient.color
+      };
+    });
+
+  remoteClients.forEach(remoteClient => {
+    client.emit("addRemoteClient", remoteClient);
+  });
+
+  client.broadcast.emit("addRemoteClient", {
+    nickname: client.nickname,
+    coordinates: client.coordinates,
+    color: client.color
+  });
+
+  client.on("move", direction => clientMove(client, direction));
+  client.on("disconnect", reason => clientDisconnected(client, reason));
 };
 
 io.on("connection", clientConnected);
