@@ -11,7 +11,7 @@
   "author": "Travis Horn (https://travishorn.com)",
   "license": "MIT",
   "dependencies": {
-    "lodash": "^4.17.19",
+    "lodash": "^4.17.21",
     "randomcolor": "^0.5.4",
     "socket.io": "^2.2.0",
     "winston": "^3.2.1"
